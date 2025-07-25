@@ -1,0 +1,35 @@
+{
+  "name": "edtech-scraper",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Scrapes, searches and summarizes educational technology news",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "heroku-postbuild": "mkdir -p ./.cache && if [ -d /app/.cache/puppeteer ]; then mv /app/.cache/puppeteer ./.cache; fi"
+  },
+  "keywords": [
+    "edtech",
+    "news",
+    "aggregator",
+    "ai",
+    "puppeteer",
+    "scraping"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.9.0",
+    "cheerio": "^1.0.0-rc.12",
+    "dotenv": "^16.5.0",
+    "mongoose": "^8.16.4",
+    "puppeteer": "^24.6.1",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "engines": {
+    "node": "18.x",
+    "npm": "9.x"
+  }
+}
