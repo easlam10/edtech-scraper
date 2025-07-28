@@ -125,19 +125,14 @@ async function main(
   }
 }
 
-// Suggested optimal EdTech search queries
-const recommendedQueries = [
-  "educational technology research articles -instagram -linkedin -facebook",
-  "edtech innovation scholarly articles -social -media",
-  "digital learning academic publications -pinterest -instagram",
-  "technology in education peer reviewed articles -social -media",
-  "edtech research findings education journals -instagram -linkedin",
-];
+// Single comprehensive EdTech search query
+const mainSearchQuery =
+  "classroom EdTech tools for teachers simple examples -research -military -medicine -complex -CRISPR -drone -satellite site:.edu OR site:.org OR site:.gov";
 
 // Allow command line arguments for search query and number of results
 if (process.argv[1] && process.argv[1].endsWith("index.js")) {
   const args = process.argv.slice(2);
-  const searchQuery = args[0] || recommendedQueries[0]; // Use first recommended query as default
+  const searchQuery = args[0] || mainSearchQuery; // Use the main query as default
   const numResults = parseInt(args[1]) || 10;
   const daysAgo = parseInt(args[2]) || 7;
 

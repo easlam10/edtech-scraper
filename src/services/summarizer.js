@@ -60,59 +60,55 @@ async function summarizeAllContent(articles) {
 
     // Create the prompt for summarization with specific EdTech focus but simple language
     const prompt = `
-You are an EdTech newsletter writer for people who speak English as a second language. Your goal is to create a meaningful summary of important EdTech news, trends, and insights that is easy to understand.
+You are an EdTech newsletter writer for elementary school teachers and parents with basic English skills. Your goal is to create a simple, easy-to-understand summary of classroom technology tools and methods.
 
-Analyze the provided content and create a summary focused on the BROADER EDUCATIONAL ECOSYSTEM:
-1. Specific innovative tools and platforms changing education (in AND outside traditional classrooms)
-2. Real examples of technology enabling new learning approaches and methods 
-3. Practical applications of AI, VR, and other technologies showing positive results in any educational context
-4. How specific EdTech tools are solving educational challenges for different stakeholders (students, teachers, parents, institutions)
-5. New learning paradigms enabled by technology that go beyond traditional teaching methods
-6. Practical examples of technology breaking barriers in education accessibility and reach
-7. Self-learning platforms and tools empowering independent learners
-8. Industry-education partnerships creating new educational pathways
+Analyze the provided content and create a summary focused ONLY on CLASSROOM TECHNOLOGY:
+1. Simple tools teachers use in classrooms (apps, websites, devices)
+2. Basic ways technology helps students learn better
+3. Easy-to-use technology for homework and learning at home
+4. Simple examples of how teachers use computers, tablets, and internet in lessons
+5. Technology that helps students practice reading, writing, and math
+6. Fun technology activities for classroom learning
+7. Simple ways parents can use technology to help children learn
+8. Basic tools that make teaching easier for teachers
 
-USE THIS CHAIN-OF-THOUGHT REASONING PROCESS FOR EACH POINT:
-Step 1: Identify a specific EdTech application, tool, method or development from the source content
-Step 2: Ask yourself: "Is this common knowledge or a generic statement?" If yes, reject it and find something more specific
-Step 3: Ask yourself: "Does this mention specific details like product names, organizations, techniques, or measurable outcomes?" If no, reject it
-Step 4: Ask yourself: "Would this information be new and valuable to someone in education?" If no, reject it
-Step 5: Ask yourself: "Does this represent diverse aspects of education beyond just classroom teaching?" If no, find additional diverse examples
-Step 6: Only after passing all checks, format it as a bullet point with simple language
+USE VERY SIMPLE ENGLISH (3rd grade level) - imagine explaining to someone who is just learning English.
+
+For each bullet point:
+1. Focus ONLY on classroom technology and simple learning tools
+2. Mention specific tool names that teachers and parents can easily find and use
+3. Explain HOW the tool helps students learn in simple terms
+4. Include only information that elementary teachers and parents would find useful
+5. AVOID complex academic research, advanced technology, or non-education topics
+6. NEVER include anything about medical research, military, aerospace, or advanced science
 
 EXTREMELY IMPORTANT REQUIREMENTS:
-- Create 8 bullet points total
-- ENSURE DIVERSITY: Do not focus only on teachers and classrooms - include diverse aspects of educational technology
-- AVOID starting multiple points with "Teachers use..." - vary your starting phrases
-- Each bullet point MUST focus on PRACTICAL APPLICATIONS and METHODS, not institutional statistics
-- Focus on HOW technology is being used, not just that it exists
-- AVOID generic institutional announcements, statistics, or program listings
-- AVOID bullet points about schools/universities simply having EdTech programs
-- Each bullet point MUST include SPECIFIC techniques, methods, or applications
-- Use SIMPLE English (5th grade level)
-- Each bullet point should be detailed but under 40 words max
+- Create 8 bullet points total about CLASSROOM TECHNOLOGY ONLY
+- Each bullet point must be about a SPECIFIC tool or app teachers can use
+- Use VERY SIMPLE English (3rd grade level)
+- Keep each bullet point under 30 words
 - Use short, simple sentences
+- AVOID big words or technical terms
 - Start each bullet point with * followed by a space
-- Add a blank line between each bullet point for better readability
-- INCLUDE THE SOURCE URL directly after each bullet point on a new line, indented with two spaces like this:
-  Source: [exact URL where this specific information was found]
-- DO NOT include any introductory text or headings before the bullet points
+- Add a blank line between each bullet point
+- INCLUDE THE SOURCE URL directly after each bullet point on a new line, indented with two spaces
+- REJECT any content not directly related to classroom teaching tools
 
-Examples of GOOD bullet points with diverse starting phrases:
-* Khan Academy's AI tutor helps students learn math at their own pace, providing immediate feedback on complex problems and adjusting difficulty based on performance.
-  Source: https://example.com/specific-article-url
+Examples of GOOD bullet points:
+* Kahoot! lets teachers make fun quiz games. Students answer questions on tablets or phones. Kids learn while having fun.
+  Source: https://example.com/article-url
 
-* Virtual reality platform ClassVR lets students explore ancient Rome and Egyptian pyramids, increasing history test scores by 27% in pilot schools across California.
-  Source: https://example.com/specific-article-url
+* ClassDojo app helps teachers share student behavior updates with parents. Parents can see how their child is doing in school every day.
+  Source: https://example.com/article-url
 
-* Remote learning platform Outschool connects 140,000 students with specialist teachers for courses in coding, robotics, and creative writing that aren't available in their local schools.
-  Source: https://example.com/specific-article-url
+* Google Classroom helps teachers give homework online. Students can turn in work without paper. Teachers can grade it quickly.
+  Source: https://example.com/article-url
 
-Examples of BAD bullet points (avoid these):
-* Teachers are using technology in the classroom.
-* A university has an online learning program.
-* Students learn better with computers.
-* Technology is changing education.
+Examples of BAD bullet points (reject these):
+* CRISPR gene-editing therapy shows promising results in trials.
+* Military drone technology advances with new software.
+* Satellite technology improves Earth observation capabilities.
+* University research programs receive new funding.
 
 Content to analyze:
 ${finalContent}
