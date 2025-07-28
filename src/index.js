@@ -127,19 +127,19 @@ async function main(
 
 // Suggested optimal EdTech search queries
 const recommendedQueries = [
-  "new EdTech teaching methods applications",
-  "innovative classroom technology techniques",
-  "AI transforming teaching learning methods",
-  "practical EdTech tools improving student outcomes",
-  "how technology is changing classroom teaching methods",
+  "educational technology research articles -instagram -linkedin -facebook",
+  "edtech innovation scholarly articles -social -media",
+  "digital learning academic publications -pinterest -instagram",
+  "technology in education peer reviewed articles -social -media",
+  "edtech research findings education journals -instagram -linkedin",
 ];
 
 // Allow command line arguments for search query and number of results
 if (process.argv[1] && process.argv[1].endsWith("index.js")) {
   const args = process.argv.slice(2);
   const searchQuery = args[0] || recommendedQueries[0]; // Use first recommended query as default
-  const numResults = parseInt(args[1]) || 8;
-  const daysAgo = parseInt(args[2]) || 1;
+  const numResults = parseInt(args[1]) || 10;
+  const daysAgo = parseInt(args[2]) || 7;
 
   main(searchQuery, numResults, daysAgo).catch((error) => {
     console.error("Unhandled error in main process:", error);
