@@ -1,224 +1,116 @@
+import axios from "axios";
+import dotenv from "dotenv";
 import puppeteer from "puppeteer";
 import { load } from "cheerio";
 
-/**
- * Checks if a URL appears to be a homepage or non-article page
- * @param {string} url - The URL to check
- * @returns {boolean} - True if the URL appears to be a homepage or non-article
- */
-function isHomepage(url) {
-  try {
-    // Parse the URL
-    const urlObj = new URL(url);
-    const path = urlObj.pathname;
-
-    // Common homepage patterns
-    const homepagePatterns = [
-      /^\/$/, // Just a slash
-      /^\/index\.(html|php|asp|jsp)$/i, // index.html, index.php, etc.
-      /^\/home\.(html|php|asp|jsp)$/i, // home.html, home.php, etc.
-      /^\/default\.(html|php|asp|jsp)$/i, // default.html, etc.
-      /^\/welcome\.(html|php|asp|jsp)$/i, // welcome.html, etc.
-      /^\/home\/?$/i, // /home or /home/
-      /^\/main\/?$/i, // /main or /main/
-    ];
-
-    // Check if the path matches homepage patterns
-    if (homepagePatterns.some((pattern) => pattern.test(path))) {
-      console.log(`Skipping homepage: ${url}`);
-      return true;
-    }
-
-    // Check if URL is just the domain
-    if (path === "" || path === "/") {
-      console.log(`Skipping root homepage: ${url}`);
-      return true;
-    }
-
-    // Check for non-article pages like "about", "contact", etc.
-    const nonArticlePatterns = [
-      /^\/about\/?$/i,
-      /^\/contact\/?$/i,
-      /^\/faq\/?$/i,
-      /^\/help\/?$/i,
-      /^\/support\/?$/i,
-      /^\/terms\/?$/i,
-      /^\/privacy\/?$/i,
-      /^\/login\/?$/i,
-      /^\/signup\/?$/i,
-      /^\/register\/?$/i,
-      /^\/account\/?$/i,
-    ];
-
-    if (nonArticlePatterns.some((pattern) => pattern.test(path))) {
-      console.log(`Skipping non-article page: ${url}`);
-      return true;
-    }
-
-    // Default to not being a homepage
-    return false;
-  } catch (error) {
-    console.error(`Error checking if ${url} is homepage:`, error.message);
-    return false; // If we can't determine, don't skip
-  }
-}
+dotenv.config();
 
 /**
- * Scrapes the main content from a URL
- * @param {string} url - The URL to scrape
- * @returns {Promise<Object>} - The extracted text content and metadata
+ * Enhanced scraping with better logging and timeout handling
  */
 async function scrapeContent(url) {
   let browser = null;
-  
+  console.log(`Starting scrape: ${url}`);
+
   try {
-    console.log(`Scraping content from: ${url}`);
-    
-    // Use the same launch config that worked before
     browser = await puppeteer.launch({
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--single-process'
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
       ],
-      headless: 'new',
-      timeout: 60000
+      headless: "new",
+      timeout: 60000,
     });
 
     const page = await browser.newPage();
-    await page.setDefaultNavigationTimeout(60000);
-    
-    // Simplified request interception
+
+    // Configure page
+    await page.setDefaultNavigationTimeout(30000);
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    );
+
+    // Block unnecessary resources
     await page.setRequestInterception(true);
-    page.on('request', (req) => {
-      if (['image', 'stylesheet', 'font'].includes(req.resourceType())) {
+    page.on("request", (req) => {
+      if (
+        ["image", "stylesheet", "font", "media"].includes(req.resourceType())
+      ) {
         req.abort();
       } else {
         req.continue();
       }
     });
 
-    // Set user agent
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    console.log(`Navigating to: ${url}`);
+    const response = await page.goto(url, {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
 
-    // Navigation with retries
-    let response;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        break;
-      } catch (err) {
-        console.warn(`Attempt ${attempt + 1} failed: ${err.message}`);
-        if (attempt === 2) throw err;
-        await new Promise(r => setTimeout(r, 2000));
-      }
+    if (!response.ok()) {
+      throw new Error(`HTTP ${response.status()} for ${url}`);
     }
 
-    // Basic content extraction
+    console.log(`Extracting content from: ${url}`);
     const content = await page.content();
     const $ = load(content);
-    
-    // Remove unwanted elements
-    $('script, style, nav, footer, iframe').remove();
-    
-    // Get main content
-    let text = $('body').text()
-      .replace(/\s+/g, ' ')
-      .trim();
 
-    return { content: text, publishedDate: null };
+    // Clean content
+    $("script, style, iframe, noscript").remove();
+    const text = $("body").text().replace(/\s+/g, " ").trim();
 
+    console.log(`Successfully scraped ${text.length} chars from ${url}`);
+    return text;
   } catch (error) {
-    console.error(`Error scraping ${url}:`, error.message);
-    return { content: "", publishedDate: null };
+    console.error(`Scrape failed for ${url}:`, error.message);
+    return "";
   } finally {
-    if (browser) await browser.close();
-  }
-}
-
-/**
- * Extracts publication date from the page
- * @param {Object} $ - Cheerio object
- * @returns {string|null} - Publication date or null
- */
-function extractPublicationDate($) {
-  // Common selectors for publication dates
-  const dateSelectors = [
-    'meta[property="article:published_time"]',
-    'meta[name="publish_date"]',
-    'meta[name="date"]',
-    'meta[name="pubdate"]',
-    'meta[name="publication_date"]',
-    "time[datetime]",
-    ".date",
-    ".published",
-    ".pubdate",
-    ".timestamp",
-  ];
-
-  for (const selector of dateSelectors) {
-    const element = $(selector);
-    if (element.length > 0) {
-      const date =
-        element.attr("content") || element.attr("datetime") || element.text();
-      if (date) {
-        return date.trim();
+    if (browser) {
+      try {
+        console.log(`Closing browser for ${url}`);
+        await browser.close();
+      } catch (err) {
+        console.error("Error closing browser:", err.message);
       }
     }
   }
-
-  return null;
 }
 
 /**
- * Cleans and processes extracted text content
- * @param {string} text - Raw extracted text
- * @returns {string} - Cleaned text
- */
-function cleanContent(text) {
-  if (!text) return "";
-
-  return text
-    .replace(/\s+/g, " ") // Replace multiple whitespace with single space
-    .replace(/\n+/g, " ") // Replace newlines with spaces
-    .replace(/\t+/g, " ") // Replace tabs with spaces
-    .trim();
-}
-
-/**
- * Scrapes content from multiple URLs
- * @param {Array} searchResults - Array of search result objects
- * @returns {Promise<Array>} - Array of scraped content objects
+ * Scrape multiple URLs with concurrency control
  */
 async function scrapeMultipleUrls(searchResults) {
+  console.log(`Starting to scrape ${searchResults.length} URLs`);
+
   const scrapedResults = [];
+  const CONCURRENCY = 3; // Process 3 URLs at a time
+  const BATCH_DELAY = 2000; // 2 second delay between batches
 
-  for (const result of searchResults) {
-    try {
-      const scrapedContent = await scrapeContent(result.url);
+  for (let i = 0; i < searchResults.length; i += CONCURRENCY) {
+    const batch = searchResults.slice(i, i + CONCURRENCY);
+    console.log(
+      `Processing batch ${i / CONCURRENCY + 1}: ${batch.map((r) => r.url)}`
+    );
 
-      if (scrapedContent.content) {
-        scrapedResults.push({
-          title: result.title,
-          url: result.url,
-          content: scrapedContent.content,
-          publishedDate: scrapedContent.publishedDate || result.date,
-        });
-      } else {
-        console.log(`No content extracted from: ${result.url}`);
-      }
-    } catch (error) {
-      console.error(`Error processing ${result.url}:`, error.message);
+    const batchPromises = batch.map((result) =>
+      scrapeContent(result.url).then((content) => ({
+        ...result,
+        content,
+      }))
+    );
+
+    const batchResults = await Promise.all(batchPromises);
+    scrapedResults.push(...batchResults.filter((r) => r.content));
+
+    if (i + CONCURRENCY < searchResults.length) {
+      console.log(`Waiting ${BATCH_DELAY}ms before next batch...`);
+      await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY));
     }
-
-    // Add a small delay between requests to be respectful
-    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  console.log(
-    `Successfully scraped content from ${scrapedResults.length} URLs`
-  );
+  console.log(`Finished scraping. Got ${scrapedResults.length} valid results`);
   return scrapedResults;
 }
 

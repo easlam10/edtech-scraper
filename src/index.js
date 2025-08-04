@@ -1,145 +1,69 @@
 import dotenv from "dotenv";
-import {
-  fetchSearchResults,
-  isUrlProcessedBefore,
-  markUrlAsProcessed,
-} from "./services/search.js";
+import { fetchSearchResults } from "./services/search.js";
 import { scrapeMultipleUrls } from "./services/scraper.js";
-import { processArticles } from "./services/summarizer.js";
+import { summarizeAllContent } from "./services/summarizer.js";
 import { saveEdTechNewsSummary } from "./services/messageService.js";
 
 dotenv.config();
 
 /**
  * Main function to execute the entire process
- * @param {string} searchQuery - The search query to use
- * @param {number} numResults - Number of results to process
- * @param {number} daysAgo - Restrict results to past X days
  */
-async function main(
-  searchQuery = "IT news in education sector",
-  numResults = 8,
-  daysAgo = 7
-) {
+async function main() {
   try {
-    console.log(
-      `Starting the process with query: "${searchQuery}", looking at past ${daysAgo} day(s)`
-    );
-    console.log(`Date: ${new Date().toLocaleDateString()}`);
+    console.log("Starting EdTech news aggregation process");
 
-    // Step 1: Fetch search results from Google Custom Search API
-    console.log("\n=== STEP 1: Fetching search results ===");
-    const searchResults = await fetchSearchResults(
-      searchQuery,
-      numResults,
-      daysAgo
-    );
+    // Simple search query for EdTech articles
+    const searchQuery = "education technology teaching learning tools";
 
-    if (!searchResults.length) {
-      console.error("No search results found. Exiting process.");
-      return;
+    // Step 1: Fetch more search results (20) with 14-30 day range
+    console.log("\nFetching search results...");
+    const searchResults = await fetchSearchResults(searchQuery, 25, 21); // 3 weeks
+
+    if (searchResults.length === 0) {
+      throw new Error("No search results found");
+    }
+    console.log(`Found ${searchResults.length} potential articles`);
+
+    // Step 2: Scrape content
+    console.log("\nScraping article content...");
+    const scrapedResults = await scrapeMultipleUrls(searchResults);
+
+    if (scrapedResults.length === 0) {
+      throw new Error("No content could be scraped");
+    }
+    console.log(`Successfully scraped ${scrapedResults.length} articles`);
+
+    // Step 3: Generate high-quality summary
+    console.log("\nGenerating summary with Gemini...");
+    const summarizedArticles = await summarizeAllContent(scrapedResults);
+
+    if (summarizedArticles.length === 0 || !summarizedArticles[0].summary) {
+      throw new Error("No summary could be generated");
     }
 
-    console.log(`Found ${searchResults.length} search results.`);
+    // Step 4: Save to database
+    console.log("\nSaving results...");
+    const messageContent = `📊 *EdTech Innovations Report* 📊\n\n${summarizedArticles[0].summary}`;
 
-    // Filter out URLs that have been processed before
-    const newResults = [];
-    for (const result of searchResults) {
-      const alreadyProcessed = await isUrlProcessedBefore(result.url);
-      if (!alreadyProcessed) {
-        newResults.push(result);
-      } else {
-        console.log(`Skipping previously processed URL: ${result.url}`);
-      }
-    }
-
-    if (!newResults.length) {
-      console.log(
-        "All search results have been processed previously. Try increasing daysAgo parameter or using a different query."
-      );
-      return;
-    }
-
-    console.log(`Proceeding with ${newResults.length} new results.`);
-
-    // Step 2: Scrape content from each URL
-    console.log("\n=== STEP 2: Scraping content from URLs ===");
-    const scrapedResults = await scrapeMultipleUrls(newResults);
-
-    if (!scrapedResults.length) {
-      console.error("No content could be scraped. Exiting process.");
-      return;
-    }
-
-    console.log(
-      `Successfully scraped content from ${scrapedResults.length} URLs.`
-    );
-
-    // Step 3: Process and summarize the content using Google Gemini
-    console.log("\n=== STEP 3: Generating summaries with Gemini ===");
-    const processedArticles = await processArticles(scrapedResults);
-
-    if (!processedArticles.length) {
-      console.error("No summaries could be generated. Exiting process.");
-      return;
-    }
-
-    console.log(
-      `Successfully generated ${processedArticles.length} article summaries.`
-    );
-
-    // Mark URLs as processed after successful processing
-    for (const article of processedArticles) {
-      await markUrlAsProcessed(article.url);
-      console.log(`Marked as processed: ${article.url}`);
-    }
-
-    // Step 4: Save the combined summaries to MongoDB for messenger to use
-    console.log("\n=== STEP 4: Saving summaries to MongoDB ===");
-
-    // Format the message content
-    let messageContent = "📚 *DAILY EDTECH NEWS UPDATE* 📚\n\n";
-
-    processedArticles.forEach((article, index) => {
-      messageContent += `*${index + 1}. ${article.title}*\n`;
-      messageContent += `${article.summary}\n\n`;
-      messageContent += `Source: ${article.url}\n\n`;
+    await saveEdTechNewsSummary(messageContent, {
+      sources: Array.from(
+        new Set(
+          summarizedArticles[0].summary.match(
+            /Source:\s*(https?:\/\/[^\s]+)/gi
+          ) || []
+        )
+      ),
+      query: searchQuery,
+      date: new Date().toISOString(),
     });
 
-    messageContent += "⭐ *Generated by EdTech News Aggregator* ⭐";
-
-    // Save message to MongoDB
-    const metadata = {
-      articleCount: processedArticles.length,
-      searchQuery: searchQuery,
-      sources: processedArticles.map((article) => article.url),
-    };
-
-    await saveEdTechNewsSummary(messageContent, metadata);
-    console.log("Message saved to MongoDB successfully!");
-
-    console.log("\n=== Process completed successfully! ===");
+    console.log("\nProcess completed successfully!");
   } catch (error) {
-    console.error("Error in main process:", error.message);
-    throw error;
+    console.error("Process failed:", error.message);
+    process.exit(1);
   }
 }
 
-// Single comprehensive EdTech search query
-const mainSearchQuery =
-  "classroom EdTech tools for teachers simple examples -research -military -medicine -complex -CRISPR -drone -satellite site:.edu OR site:.org OR site:.gov";
-
-// Allow command line arguments for search query and number of results
-if (process.argv[1] && process.argv[1].endsWith("index.js")) {
-  const args = process.argv.slice(2);
-  const searchQuery = args[0] || mainSearchQuery; // Use the main query as default
-  const numResults = parseInt(args[1]) || 10;
-  const daysAgo = parseInt(args[2]) || 7;
-
-  main(searchQuery, numResults, daysAgo).catch((error) => {
-    console.error("Unhandled error in main process:", error);
-    process.exit(1);
-  });
-}
-
-export { main };
+// Run the process
+main();
