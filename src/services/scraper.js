@@ -8,11 +8,7 @@ dotenv.config();
 /**
  * Enhanced scraping with better logging and timeout handling
  */
-const puppeteer = require("puppeteer-extra");
-const StealthPlugin = require("puppeteer-extra-plugin-stealth");
-const { load } = require("cheerio");
 
-puppeteer.use(StealthPlugin());
 
 async function scrapeContent(url) {
   let browser = null;
