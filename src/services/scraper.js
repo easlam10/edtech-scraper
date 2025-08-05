@@ -8,28 +8,51 @@ dotenv.config();
 /**
  * Enhanced scraping with better logging and timeout handling
  */
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require("puppeteer-extra-plugin-stealth");
+const { load } = require("cheerio");
+
+puppeteer.use(StealthPlugin());
+
 async function scrapeContent(url) {
   let browser = null;
   console.log(`Starting scrape: ${url}`);
 
   try {
     browser = await puppeteer.launch({
+      headless: "new",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--single-process",
+        "--no-zygote",
+        "--disable-setuid-sandbox",
+        "--disable-accelerated-2d-canvas",
+        "--disable-web-security"
       ],
-      headless: "new",
-      timeout: 60000,
+      defaultViewport: { width: 1280, height: 800 },
+      ignoreHTTPSErrors: true,
+      timeout: 30000,
     });
 
     const page = await browser.newPage();
 
-    // Configure page
-    await page.setDefaultNavigationTimeout(30000);
+    // Set realistic user agent and other stealth options
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     );
+    await page.setExtraHTTPHeaders({
+      "Accept-Language": "en-US,en;q=0.9",
+    });
+
+    // Configure page behavior for better stealth
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, "webdriver", {
+        get: () => false,
+      });
+    });
 
     // Block unnecessary resources
     await page.setRequestInterception(true);
@@ -45,8 +68,8 @@ async function scrapeContent(url) {
 
     console.log(`Navigating to: ${url}`);
     const response = await page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: 30000,
+      waitUntil: "networkidle2",
+      timeout: 60000,
     });
 
     if (!response.ok()) {
