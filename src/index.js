@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import { fetchSearchResults } from "./services/search.js";
 import { scrapeMultipleUrls } from "./services/scraper.js";
 import { summarizeAllContent } from "./services/summarizer.js";
-import { saveEdTechNewsSummary } from "./services/messageService.js";
+import { sendArticleSummaries } from "./services/messageService.js";
 
 dotenv.config();
 
@@ -42,21 +42,9 @@ async function main() {
       throw new Error("No summary could be generated");
     }
 
-    // Step 4: Save to database
-    console.log("\nSaving results...");
-    const messageContent = `📊 *EdTech Innovations Report* 📊\n\n${summarizedArticles[0].summary}`;
-
-    await saveEdTechNewsSummary(messageContent, {
-      sources: Array.from(
-        new Set(
-          summarizedArticles[0].summary.match(
-            /Source:\s*(https?:\/\/[^\s]+)/gi
-          ) || []
-        )
-      ),
-      query: searchQuery,
-      date: new Date().toISOString(),
-    });
+    // Step 4: Send WhatsApp message
+    console.log("\nSending WhatsApp message...");
+    await sendArticleSummaries(summarizedArticles);
 
     console.log("\nProcess completed successfully!");
   } catch (error) {
