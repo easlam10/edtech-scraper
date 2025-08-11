@@ -38,6 +38,7 @@ async function main() {
     console.log("\nGenerating summary with Gemini...");
     const summarizedArticles = await summarizeAllContent(scrapedResults);
 
+
     if (summarizedArticles.length === 0 || !summarizedArticles[0].summary) {
       throw new Error("No summary could be generated");
     }
