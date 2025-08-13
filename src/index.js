@@ -18,7 +18,7 @@ async function main() {
 
     // Step 1: Fetch more search results (20) with 14-30 day range
     console.log("\nFetching search results...");
-    const searchResults = await fetchSearchResults(searchQuery, 25, 21); // 3 weeks
+    const searchResults = await fetchSearchResults(searchQuery, 25); // 3 weeks
 
     if (searchResults.length === 0) {
       throw new Error("No search results found");
