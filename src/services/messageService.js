@@ -94,42 +94,50 @@ function extractPointsAndSources(summary) {
  * @param {Object} templateData - The data to populate the template
  * @returns {Promise<Object>} - Result of the sending operation
  */
+/**
+ * Sends a WhatsApp message via Meta Cloud API to multiple recipients
+ * @param {Object} templateData - The data to populate the template
+ * @returns {Promise<void>}
+ */
 async function sendWhatsAppMessage(templateData) {
-  try {
-    // Always output the formatted message to console for testing/backup
-    console.log("\n========= TEMPLATE DATA =========");
-    console.log(JSON.stringify(templateData, null, 2));
-    console.log("===================================\n");
+  console.log("\n========= TEMPLATE DATA =========");
+  console.log(JSON.stringify(templateData, null, 2));
+  console.log("===================================\n");
 
+  const url = `https://graph.facebook.com/v23.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
 
+  // Parameters must be in the exact order they appear in the template
+  const parameters = [
+    { type: "text", text: templateData.date },
+    { type: "text", text: templateData.first_point },
+    { type: "text", text: templateData.first_link },
+    { type: "text", text: templateData.second_point },
+    { type: "text", text: templateData.second_link },
+    { type: "text", text: templateData.third_point },
+    { type: "text", text: templateData.third_link },
+    { type: "text", text: templateData.fourth_point },
+    { type: "text", text: templateData.fourth_link },
+    { type: "text", text: templateData.fifth_point },
+    { type: "text", text: templateData.fifth_link },
+    { type: "text", text: templateData.sixth_point },
+    { type: "text", text: templateData.sixth_link },
+    { type: "text", text: templateData.seventh_point },
+    { type: "text", text: templateData.seventh_link },
+    { type: "text", text: templateData.eigth_point },
+    { type: "text", text: templateData.eigth_link },
+  ];
 
-    const url = `https://graph.facebook.com/v23.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+  const recipients = [
+    process.env.WHATSAPP_RECIPIENT_NUMBER_1,
+    process.env.WHATSAPP_RECIPIENT_NUMBER_2,
+  ];
 
-    // Parameters must be in the exact order they appear in the template
-    // Without the name property - just using type and text as per API requirements
-    const parameters = [
-      { type: "text", text: templateData.date },
-      { type: "text", text: templateData.first_point },
-      { type: "text", text: templateData.first_link },
-      { type: "text", text: templateData.second_point },
-      { type: "text", text: templateData.second_link },
-      { type: "text", text: templateData.third_point },
-      { type: "text", text: templateData.third_link },
-      { type: "text", text: templateData.fourth_point },
-      { type: "text", text: templateData.fourth_link },
-      { type: "text", text: templateData.fifth_point },
-      { type: "text", text: templateData.fifth_link },
-      { type: "text", text: templateData.sixth_point },
-      { type: "text", text: templateData.sixth_link },
-      { type: "text", text: templateData.seventh_point },
-      { type: "text", text: templateData.seventh_link },
-      { type: "text", text: templateData.eigth_point },
-      { type: "text", text: templateData.eigth_link },
-    ];
+  for (const number of recipients) {
+    if (!number) continue; // skip empty env vars
 
     const payload = {
       messaging_product: "whatsapp",
-      to: process.env.WHATSAPP_RECIPIENT_NUMBER,
+      to: number,
       type: "template",
       template: {
         name: "edtech",
@@ -150,20 +158,16 @@ async function sendWhatsAppMessage(templateData) {
           "Content-Type": "application/json",
         },
       });
-      console.log("✅ WhatsApp message sent successfully");
-      return response.data;
+      console.log(`✅ WhatsApp message sent successfully to ${number}`);
     } catch (apiError) {
       console.error(
-        "❌ WhatsApp API error:",
+        `❌ WhatsApp API error for ${number}:`,
         apiError.response?.data || apiError.message
       );
-      throw apiError;
     }
-  } catch (error) {
-    console.error("Error sending WhatsApp message:", error.message);
-    throw new Error(`Failed to send WhatsApp message: ${error.message}`);
   }
 }
+
 
 /**
  * Process and send articles as WhatsApp message
