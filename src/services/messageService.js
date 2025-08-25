@@ -3,6 +3,16 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// Get recipient number from command line argument
+const recipientNumber = process.argv[2];
+if (!recipientNumber) {
+  console.error("❌ No recipient number provided via command line");
+  console.log("Usage: node your-script.js <recipient_phone_number>");
+  process.exit(1);
+}
+
+console.log(`📱 Recipient number: ${recipientNumber}`);
+
 /**
  * Extracts bullet points and their sources from the summary
  * @param {string} summary - The summary text with bullet points and sources
@@ -90,16 +100,16 @@ function extractPointsAndSources(summary) {
 }
 
 /**
- * Sends a WhatsApp message via Meta Cloud API
+ * Sends a WhatsApp message via Meta Cloud API to a single recipient
  * @param {Object} templateData - The data to populate the template
  * @returns {Promise<Object>} - Result of the sending operation
  */
-/**
- * Sends a WhatsApp message via Meta Cloud API to multiple recipients
- * @param {Object} templateData - The data to populate the template
- * @returns {Promise<void>}
- */
 async function sendWhatsAppMessage(templateData) {
+  if (!recipientNumber) {
+    console.error("❌ No recipient number provided");
+    return;
+  }
+
   console.log("\n========= TEMPLATE DATA =========");
   console.log(JSON.stringify(templateData, null, 2));
   console.log("===================================\n");
@@ -127,47 +137,39 @@ async function sendWhatsAppMessage(templateData) {
     { type: "text", text: templateData.eigth_link },
   ];
 
-  const recipients = [
-    process.env.WHATSAPP_RECIPIENT_NUMBER_1,
-    process.env.WHATSAPP_RECIPIENT_NUMBER_2,
-  ];
-
-  for (const number of recipients) {
-    if (!number) continue; // skip empty env vars
-
-    const payload = {
-      messaging_product: "whatsapp",
-      to: number,
-      type: "template",
-      template: {
-        name: "edtech",
-        language: { code: "en_US" },
-        components: [
-          {
-            type: "body",
-            parameters: parameters,
-          },
-        ],
-      },
-    };
-
-    try {
-      const response = await axios.post(url, payload, {
-        headers: {
-          Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
-          "Content-Type": "application/json",
+  const payload = {
+    messaging_product: "whatsapp",
+    to: recipientNumber, // Use the recipient number from command line
+    type: "template",
+    template: {
+      name: "edtech",
+      language: { code: "en_US" },
+      components: [
+        {
+          type: "body",
+          parameters: parameters,
         },
-      });
-      console.log(`✅ WhatsApp message sent successfully to ${number}`);
-    } catch (apiError) {
-      console.error(
-        `❌ WhatsApp API error for ${number}:`,
-        apiError.response?.data || apiError.message
-      );
-    }
+      ],
+    },
+  };
+
+  try {
+    const response = await axios.post(url, payload, {
+      headers: {
+        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+    });
+    console.log(`✅ WhatsApp message sent successfully to ${recipientNumber}`);
+    return response.data;
+  } catch (apiError) {
+    console.error(
+      `❌ WhatsApp API error for ${recipientNumber}:`,
+      apiError.response?.data || apiError.message
+    );
+    throw apiError;
   }
 }
-
 
 /**
  * Process and send articles as WhatsApp message
@@ -203,4 +205,4 @@ async function sendArticleSummaries(articles) {
   }
 }
 
-export { extractPointsAndSources, sendWhatsAppMessage, sendArticleSummaries };
+export { extractPointsAndSources, sendWhatsAppMessage, sendArticleSummaries, recipientNumber };
