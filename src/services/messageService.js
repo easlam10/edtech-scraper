@@ -11,6 +11,8 @@ if (!recipientNumber) {
   process.exit(1);
 }
 
+
+
 console.log(`📱 Recipient number: ${recipientNumber}`);
 
 /**

@@ -1,13 +1,18 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import Anthropic from "@anthropic-ai/sdk";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+
+const anthropic = new Anthropic({
+  apiKey: process.env.CLAUDE_API_KEY,
+});
 
 /**
- * Summarizes all content with strict source requirements
+ * Summarizes all content with strict source requirements using Gemini as primary and Claude as backup
  */
 async function summarizeAllContent(articles) {
   try {
@@ -23,14 +28,14 @@ async function summarizeAllContent(articles) {
 
     for (const article of articles) {
       if (!article.content) continue;
-      
+
       sourceUrls.push(article.url);
       urlToContentMap[article.url] = article.content;
-      
-      const truncatedContent = article.content.length > 4000 
-        ? article.content.substring(0, 4000) + "..." 
+
+      const truncatedContent = article.content.length > 4000
+        ? article.content.substring(0, 4000) + "..."
         : article.content;
-      
+
       combinedContent += `\n\n### SOURCE URL: ${article.url}\n### TITLE: ${article.title}\n### CONTENT:\n${truncatedContent}\n\n---END OF SOURCE---\n`;
     }
 
@@ -66,20 +71,56 @@ CONTENT TO ANALYZE:
 ${combinedContent}
 `;
 
-    // Generate content
-    const result = await model.generateContent(prompt);
-    const responseText = result.response.text();
+    // Try Gemini first
+    try {
+      console.log("Attempting to summarize with Gemini...");
+      error
+      const result = await geminiModel.generateContent(prompt);
+      const responseText = result.response.text();
+      const processedSummary = validateAndFormatSummary(responseText, sourceUrls);
 
-    // Validate and format the response
-    const processedSummary = validateAndFormatSummary(responseText, sourceUrls);
-    
-    return [{
-      title: "EdTech Innovations Summary",
-      summary: processedSummary
-    }];
+      return [{
+        title: "EdTech Innovations Summary",
+        summary: processedSummary
+      }];
+    } catch (geminiError) {
+      console.warn("Gemini failed, falling back to Claude:", geminiError.message);
+      return await summarizeWithClaude(prompt, sourceUrls);
+    }
   } catch (error) {
     console.error("Error summarizing content:", error.message);
     return [];
+  }
+}
+
+/**
+ * Summarizes content using Claude as a backup option
+ */
+async function summarizeWithClaude(prompt, sourceUrls) {
+  try {
+    console.log("Attempting to summarize with Claude...");
+
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 15000,
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
+    });
+
+    const responseText = message.content[0].text;
+    const processedSummary = validateAndFormatSummary(responseText, sourceUrls);
+
+    return [{
+      title: "EdTech Innovations Summary (Claude Backup)",
+      summary: processedSummary
+    }];
+  } catch (claudeError) {
+    console.error("Claude also failed:", claudeError.message);
+    throw new Error("Both Gemini and Claude summarization failed");
   }
 }
 
