@@ -4,7 +4,7 @@ import { config, validateConfig } from "../util/config.js";
 /**
  * Enhanced EdTech article search
  */
-async function fetchSearchResults(query, numResults = 25) {
+async function fetchSearchResults(query, numResults = 20) {
   try {
     console.log(`Searching for: "${query}"`);
 

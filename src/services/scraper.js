@@ -78,7 +78,12 @@ async function scrapeContent(url) {
 
     // Clean content
     $("script, style, iframe, noscript").remove();
-    const text = $("body").text().replace(/\s+/g, " ").trim();
+    let text = $("body").text().replace(/\s+/g, " ").trim();
+
+    // Limit to first 4000 characters to balance content depth and API limits
+    if (text.length > 4000) {
+      text = text.substring(0, 4000) + "...";
+    }
 
     console.log(`Successfully scraped ${text.length} chars from ${url}`);
     return text;

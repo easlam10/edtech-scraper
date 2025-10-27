@@ -1,18 +1,20 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import Anthropic from "@anthropic-ai/sdk";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+// Initialize API clients only when needed to ensure environment variables are loaded
+function getGeminiModel() {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY not found in environment variables");
+  }
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  return genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
+}
 
-const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY,
-});
 
 /**
- * Summarizes all content with strict source requirements using Gemini as primary and Claude as backup
+ * Summarizes content using Gemini with retry logic (only uses top 10 articles)
  */
 async function summarizeAllContent(articles) {
   try {
@@ -21,12 +23,16 @@ async function summarizeAllContent(articles) {
       return [];
     }
 
+    // Use only the first 10 articles for summarization to manage input size
+    const articlesToSummarize = articles.slice(0, 10);
+    console.log(`Using ${articlesToSummarize.length} articles out of ${articles.length} available for summarization`);
+
     // Prepare content with clear source markers
     let combinedContent = "";
     const sourceUrls = [];
     const urlToContentMap = {};
 
-    for (const article of articles) {
+    for (const article of articlesToSummarize) {
       if (!article.content) continue;
 
       sourceUrls.push(article.url);
@@ -71,21 +77,34 @@ CONTENT TO ANALYZE:
 ${combinedContent}
 `;
 
-    // Try Gemini first
-    try {
-      console.log("Attempting to summarize with Gemini...");
+    // Try Gemini with retry logic (3 attempts with 3-minute intervals)
+    const maxRetries = 3;
+    const retryDelayMs = 3 * 60 * 1000; // 3 minutes
 
-      const result = await geminiModel.generateContent(prompt);
-      const responseText = result.response.text();
-      const processedSummary = validateAndFormatSummary(responseText, sourceUrls);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Attempting to summarize with Gemini (attempt ${attempt}/${maxRetries})...`);
+        const geminiModel = getGeminiModel();
 
-      return [{
-        title: "EdTech Innovations Summary",
-        summary: processedSummary
-      }];
-    } catch (geminiError) {
-      console.warn("Gemini failed, falling back to Claude:", geminiError.message);
-      return await summarizeWithClaude(prompt, sourceUrls);
+        const result = await geminiModel.generateContent(prompt);
+        const responseText = result.response.text();
+        const processedSummary = validateAndFormatSummary(responseText, sourceUrls);
+
+        return [{
+          title: "EdTech Innovations Summary",
+          summary: processedSummary
+        }];
+      } catch (geminiError) {
+        console.error(`Gemini attempt ${attempt} failed:`, geminiError.message);
+
+        if (attempt < maxRetries) {
+          console.log(`Waiting 3 minutes before retry ${attempt + 1}...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+        } else {
+          console.error("All Gemini attempts failed. Unable to generate summary.");
+          throw new Error(`Gemini summarization failed after ${maxRetries} attempts: ${geminiError.message}`);
+        }
+      }
     }
   } catch (error) {
     console.error("Error summarizing content:", error.message);
@@ -93,42 +112,6 @@ ${combinedContent}
   }
 }
 
-/**
- * Summarizes content using Claude as a backup option
- */
-async function summarizeWithClaude(prompt, sourceUrls) {
-  try {
-    console.log("Attempting to summarize with Claude...");
-
-    const response = await anthropic.messages.create({
-      model: "claude-3-haiku-20240307", // Using same model as test-api-keys.js that works
-      max_tokens: 6000,
-      temperature: 0,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: prompt
-            }
-          ]
-        }
-      ]
-    });
-
-    const responseText = response.content[0].text;
-    const processedSummary = validateAndFormatSummary(responseText, sourceUrls);
-
-    return [{
-      title: "EdTech Innovations Summary (Claude Backup)",
-      summary: processedSummary
-    }];
-  } catch (claudeError) {
-    console.error("Claude also failed:", claudeError.message);
-    throw new Error("Both Gemini and Claude summarization failed");
-  }
-}
 
 /**
  * Validates and formats the summary to ensure requirements are met
