@@ -74,7 +74,7 @@ ${combinedContent}
     // Try Gemini first
     try {
       console.log("Attempting to summarize with Gemini...");
-      error
+
       const result = await geminiModel.generateContent(prompt);
       const responseText = result.response.text();
       const processedSummary = validateAndFormatSummary(responseText, sourceUrls);
@@ -100,18 +100,24 @@ async function summarizeWithClaude(prompt, sourceUrls) {
   try {
     console.log("Attempting to summarize with Claude...");
 
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 15000,
+    const response = await anthropic.messages.create({
+      model: "claude-3-haiku-20240307", // Using same model as test-api-keys.js that works
+      max_tokens: 6000,
+      temperature: 0,
       messages: [
         {
           role: "user",
-          content: prompt
+          content: [
+            {
+              type: "text",
+              text: prompt
+            }
+          ]
         }
       ]
     });
 
-    const responseText = message.content[0].text;
+    const responseText = response.content[0].text;
     const processedSummary = validateAndFormatSummary(responseText, sourceUrls);
 
     return [{
